@@ -1,0 +1,12 @@
+{
+  "name": "eol-checker",
+  "version": "1.0.0",
+  "description": "Check the End of Life status of software products",
+  "main": "server.js",
+  "scripts": {
+    "start": "GITHUB_ORG=masterysystems node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

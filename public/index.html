@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Software EOL Checker</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Software EOL Checker</h1>
+      <p>Enter software names (one per line) to see the current version and its End-of-Life date.</p>
+    </header>
+
+    <main>
+      <section class="card input-card">
+        <label for="softwareList">Software list</label>
+        <textarea
+          id="softwareList"
+          rows="8"
+          placeholder="nodejs&#10;python&#10;windows-server&#10;postgresql"
+        ></textarea>
+        <div class="org-row">
+          <label for="orgOwner">GitHub organization</label>
+          <input id="orgOwner" type="text" placeholder="e.g. mastery" />
+        </div>
+        <div class="actions">
+          <button id="checkBtn" class="primary">Check EOL</button>
+          <button id="scanBtn" class="secondary">Scan org repos</button>
+          <button id="clearBtn" class="ghost">Clear</button>
+          <span id="status" class="status"></span>
+        </div>
+      </section>
+
+      <section class="card" id="resultSection" hidden>
+        <h2>Results</h2>
+        <div class="toolbar">
+          <select id="filter">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="eol">EOL</option>
+            <option value="error">Errors</option>
+          </select>
+          <span class="muted" id="resultCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Software</th>
+                <th>Current version</th>
+                <th>Release cycle</th>
+                <th>Latest release</th>
+                <th>EOL</th>
+                <th>Support until</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    <section class="card" id="orgSection" hidden>
+        <h2>Org scan results</h2>
+        <div class="toolbar">
+          <select id="orgFilter">
+            <option value="all">All</option>
+            <option value="active">Supported</option>
+            <option value="warning">Support ended</option>
+            <option value="eol">EOL</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <span class="muted" id="orgCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Domain</th>
+                <th>Software</th>
+                <th>Used version</th>
+                <th>File</th>
+                <th>Cycle</th>
+                <th>Latest</th>
+                <th>EOL</th>
+                <th>Support until</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="orgBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
