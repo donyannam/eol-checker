@@ -12,8 +12,9 @@ const orgSection = document.getElementById("orgSection");
 const orgBody = document.getElementById("orgBody");
 const orgFilterEl = document.getElementById("orgFilter");
 const orgCountEl = document.getElementById("orgCount");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
 
-const state = { results: [], orgRows: [], orgErrors: [] };
+const state = { results: [], orgRows: [], orgErrors: [], owner: "" };
 
 function parseList() {
   const seen = new Set();
@@ -134,6 +135,7 @@ async function scanOrg() {
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     state.orgRows = data.rows;
     state.orgErrors = data.errors || [];
+    state.owner = data.owner || owner;
     orgSection.hidden = false;
     renderOrg();
     const errs = data.rows.filter((r) => r.eol.status === "eol").length;
@@ -151,11 +153,15 @@ async function scanOrg() {
   }
 }
 
-function renderOrg() {
+function filteredOrgRows() {
   const filter = orgFilterEl.value;
-  const rows = state.orgRows.filter((r) =>
+  return state.orgRows.filter((r) =>
     filter === "all" ? true : r.eol.status === filter
   );
+}
+
+function renderOrg() {
+  const rows = filteredOrgRows();
   orgCountEl.textContent = `${rows.length} of ${state.orgRows.length} matches`;
 
   const parts = [];
@@ -169,7 +175,7 @@ function renderOrg() {
     const e = r.eol;
     parts.push(`<tr>
       <td><a href="${escapeHtml(r.repoUrl)}" target="_blank" rel="noopener">${escapeHtml(r.repo)}</a></td>
-      <td>${r.domain ? escapeHtml(r.domain) : "—"}</td>
+      <td${r.domainHost ? ` title="${escapeHtml(r.domainHost)}"` : ""}>${r.domain ? escapeHtml(r.domain) : "—"}</td>
       <td>${escapeHtml(r.name)}</td>
       <td>${escapeHtml(r.version)}</td>
       <td><span class="mono muted">${escapeHtml(r.file)}</span></td>
@@ -195,6 +201,50 @@ function renderOrg() {
   }
 
   orgBody.innerHTML = parts.join("");
+}
+
+function statusLabel(status) {
+  const map = { active: "Supported", warning: "Support ended", eol: "EOL", unknown: "Unknown", error: "Not found" };
+  return map[status] || status;
+}
+
+function exportOrgCsv() {
+  const rows = filteredOrgRows();
+  const esc = (v) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ["Repository", "Domain", "Software", "Used version", "File", "Cycle", "Latest", "EOL", "Support until", "Status"];
+  const lines = [header.join(",")];
+  for (const r of rows) {
+    const e = r.eol;
+    lines.push(
+      [
+        r.repo,
+        r.domain || "",
+        r.name,
+        r.version,
+        r.file,
+        e.cycle || "",
+        e.latest || "",
+        fmtDate(e.eol),
+        fmtDate(e.support),
+        statusLabel(e.status),
+      ]
+        .map(esc)
+        .join(",")
+    );
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `eol-org-scan-${state.owner || "org"}-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function render() {
@@ -248,6 +298,7 @@ checkBtn.addEventListener("click", checkEol);
 scanBtn.addEventListener("click", scanOrg);
 filterEl.addEventListener("change", render);
 orgFilterEl.addEventListener("change", renderOrg);
+exportCsvBtn.addEventListener("click", exportOrgCsv);
 clearBtn.addEventListener("click", () => {
   listEl.value = "";
   resultSection.hidden = true;

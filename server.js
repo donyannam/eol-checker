@@ -266,6 +266,23 @@ function hostOf(value) {
   }
 }
 
+const FUNCTIONAL_DOMAINS = require(path.join(__dirname, "domains.json"));
+
+// Map a repo to its functional domain using domains.json. Exact repo-name
+// matches win, then substring matches (checked in file order); fall back to
+// the homepage hostname when no rule matches.
+function functionalDomain(repo) {
+  const full = (repo.full_name || repo.name || "").toLowerCase();
+  const name = (repo.name || "").toLowerCase();
+  for (const [key, domain] of Object.entries(FUNCTIONAL_DOMAINS)) {
+    if (key === name || key === full) return domain;
+  }
+  for (const [key, domain] of Object.entries(FUNCTIONAL_DOMAINS)) {
+    if (full.includes(key)) return domain;
+  }
+  return hostOf(repo.homepage);
+}
+
 // Detect versions of the requested product inside a file's content.
 function detectInFile(type, content, variants) {
   const out = [];
@@ -642,7 +659,8 @@ app.post("/api/org-scan", async (req, res) => {
           rows.push({
             repo: repo.full_name,
             repoUrl: repo.html_url,
-            domain: hostOf(repo.homepage),
+            domain: functionalDomain(repo),
+            domainHost: hostOf(repo.homepage),
             branch,
             name: displayName,
             file: c.path,
