@@ -153,6 +153,45 @@ async function listOrgRepos(owner) {
   return repos;
 }
 
+// Latest successful GitHub Actions workflow run for a repo, used as the
+// "last deployed on" signal. Cached per repo so every row of a repo shares one
+// API call. Repos with Actions disabled, no successful run, or a token without
+// the Actions read scope yield a null date plus an explanatory error; neither
+// counts as a scan error.
+const RUN_CACHE = new Map();
+
+async function getLastSuccessfulRun(owner, repo) {
+  const key = `${owner}/${repo}`;
+  if (RUN_CACHE.has(key)) return RUN_CACHE.get(key);
+
+  let result;
+  try {
+    const data = await ghFetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/actions/runs?per_page=1&status=success`
+    );
+    if (data === null) {
+      result = { date: null, name: null, url: null, branch: null, error: "No Actions data" };
+    } else {
+      const run = Array.isArray(data?.workflow_runs) ? data.workflow_runs[0] : null;
+      result = run
+        ? {
+            date: run.updated_at || run.run_started_at || run.created_at || null,
+            name: run.name || null,
+            url: run.html_url || null,
+            branch: run.head_branch || null,
+          }
+        : { date: null, name: null, url: null, branch: null, error: "No successful run" };
+    }
+  } catch (err) {
+    result = { date: null, name: null, url: null, branch: null, error: err.message };
+  }
+
+  RUN_CACHE.set(key, result);
+  return result;
+}
+
 async function getRepoTree(owner, repo, branch) {
   if (!branch) return [];
   const data = await ghFetch(
@@ -449,6 +488,12 @@ function detectInFile(type, content, variants) {
 
 const EOL_CACHE = new Map();
 
+// The endoflife.date endpoint that supplied a product's EOL data, surfaced in
+// the UI so every row is traceable back to its source.
+function eolSourceUrl(productId) {
+  return productId ? `${EOL_API}/${productId}.json` : null;
+}
+
 // Resolve the EOL status for a product/version using endoflife.date.
 async function lookupProductEol(product, version, catalog) {
   const cacheKey = `${toKebab(product)}|${cycleKey(version)}`;
@@ -480,6 +525,7 @@ async function lookupProductEol(product, version, catalog) {
   const result = {
     status,
     productId,
+    sourceUrl: eolSourceUrl(productId),
     cycle: cycle?.cycle || null,
     latest: cycle?.latest || null,
     latestReleaseDate: cycle?.latestReleaseDate || null,
@@ -559,6 +605,7 @@ app.post("/api/eol", async (req, res) => {
       name: displayName,
       requested: rawName,
       productId: targetedCycle ? match.productId : productId,
+      sourceUrl: eolSourceUrl(targetedCycle ? match.productId : productId),
       cycles: cycles.length,
       status: cycle ? "active" : "all-eol",
       targetedCycle: targetedCycle ? cycle.cycle : null,
@@ -621,6 +668,8 @@ app.post("/api/org-scan", async (req, res) => {
     }
     if (!files.length) continue;
 
+    const lastDeployment = await getLastSuccessfulRun(owner, repo.name);
+
     const candidates = [];
     let workflows = 0;
     let dockers = 0;
@@ -662,6 +711,7 @@ app.post("/api/org-scan", async (req, res) => {
             domain: functionalDomain(repo),
             domainHost: hostOf(repo.homepage),
             branch,
+            lastDeployment,
             name: displayName,
             file: c.path,
             version: d.version,

@@ -89,7 +89,7 @@ function eolStatus(r, now) {
 
 function fmtDate(value) {
   if (value == null) return "";
-  if (value === true) return "Ongoing";
+  if (value === true) return "Stale";
   if (value === false) return "Ended";
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? String(value) : d.toISOString().slice(0, 10);
@@ -105,6 +105,26 @@ function badge(status) {
   };
   const [label, cls] = map[status] || ["", ""];
   return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// Traceability cell: links the row to the endoflife.date endpoint that supplied
+// its EOL data. Text is the API path (readable, and safe to render inline).
+
+function sourceApiCell(url) {
+  if (!url) return '<span class="muted">—</span>';
+  return `<a class="mono" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${escapeHtml(url)}">${escapeHtml(url.replace(/^https?:\/\//, ""))}</a>`;
+}
+
+function lastDeploymentCell(d) {
+  if (!d) return "—";
+  if (!d.date) {
+    return `<span class="muted"${d.error ? ` title="${escapeHtml(d.error)}"` : ""}>—</span>`;
+  }
+  const title = [d.name, d.branch && `branch ${d.branch}`].filter(Boolean).join(" · ");
+  const date = `<span${title ? ` title="${escapeHtml(title)}"` : ""}>${fmtDate(d.date)}</span>`;
+  return d.url
+    ? `<a href="${escapeHtml(d.url)}" target="_blank" rel="noopener">${date}</a>`
+    : date;
 }
 
 async function scanOrg() {
@@ -167,7 +187,7 @@ function renderOrg() {
   const parts = [];
 
   if (rows.length === 0 && state.orgRows.length === 0 && !state.orgErrors.length) {
-    orgBody.innerHTML = `<tr><td colspan="10" class="muted">No software versions detected in these repos.</td></tr>`;
+    orgBody.innerHTML = `<tr><td colspan="12" class="muted">No software versions detected in these repos.</td></tr>`;
     return;
   }
 
@@ -183,20 +203,22 @@ function renderOrg() {
       <td>${e.latest ? e.latest : "—"}</td>
       <td>${fmtDate(e.eol)}</td>
       <td>${fmtDate(e.support)}</td>
+      <td>${sourceApiCell(e.sourceUrl)}</td>
+      <td>${lastDeploymentCell(r.lastDeployment)}</td>
       <td>${badge(e.status)}</td>
     </tr>`);
   }
 
   if (rows.length === 0) {
     parts.push(
-      `<tr><td colspan="10" class="muted">No matches for the current filter.</td></tr>`
+      `<tr><td colspan="12" class="muted">No matches for the current filter.</td></tr>`
     );
   }
 
   for (const err of state.orgErrors) {
     parts.push(`<tr class="row-error">
       <td class="name-cell">${escapeHtml(err.repo)}</td>
-      <td colspan="9">${escapeHtml(err.message)}</td>
+      <td colspan="11">${escapeHtml(err.message)}</td>
     </tr>`);
   }
 
@@ -214,7 +236,7 @@ function exportOrgCsv() {
     const s = v == null ? "" : String(v);
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const header = ["Repository", "Domain", "Software", "Used version", "File", "Cycle", "Latest", "EOL", "Support until", "Status"];
+  const header = ["Repository", "Domain", "Software", "Used version", "File", "Cycle", "Latest", "EOL", "Support until", "Source API", "Last deployment", "Status"];
   const lines = [header.join(",")];
   for (const r of rows) {
     const e = r.eol;
@@ -229,6 +251,8 @@ function exportOrgCsv() {
         e.latest || "",
         fmtDate(e.eol),
         fmtDate(e.support),
+        e.sourceUrl || "",
+        r.lastDeployment?.date ? fmtDate(r.lastDeployment.date) : "",
         statusLabel(e.status),
       ]
         .map(esc)
@@ -257,7 +281,7 @@ function render() {
   resultCountEl.textContent = `${rows.length} of ${state.results.length}`;
 
   if (rows.length === 0) {
-    resultsBody.innerHTML = `<tr><td colspan="7" class="muted">No results match the current filter.</td></tr>`;
+    resultsBody.innerHTML = `<tr><td colspan="8" class="muted">No results match the current filter.</td></tr>`;
     return;
   }
 
@@ -266,7 +290,7 @@ function render() {
       if (r.error) {
         return `<tr class="row-error">
           <td class="name-cell">${escapeHtml(r.name)}</td>
-          <td colspan="6">${escapeHtml(r.error)}</td>
+          <td colspan="7">${escapeHtml(r.error)}</td>
         </tr>`;
       }
       const c = r.current;
@@ -278,6 +302,7 @@ function render() {
         <td>${c ? fmtDate(c.latestReleaseDate) : "—"}</td>
         <td>${c ? fmtDate(c.eol) : "All cycles EOL"}</td>
         <td>${c ? fmtDate(c.support) : "—"}</td>
+        <td>${sourceApiCell(r.sourceUrl)}</td>
         <td>${badge(status)}</td>
       </tr>`;
     })

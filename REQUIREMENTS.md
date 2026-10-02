@@ -62,12 +62,22 @@ The tool is currently scoped to the `masterysystems` organization.
 - **FR-2.3** For each entered product, the scan reports per repository/file/version:
   repository name and URL, functional domain, software, detected version, the file where
   the version was found, matching release cycle, latest version, EOL date, support date,
-  and status (`Supported` / `Support ended` / `EOL` / `Unknown`).
+  the repository's last deployment date, and status (`Supported` / `Support ended` /
+  `EOL` / `Unknown`).
 - **FR-2.4** Forked and archived repositories are excluded from the scan.
 - **FR-2.5** Optional `limit` parameter restricts the number of repositories scanned
   (used for large organizations).
 - **FR-2.6** Repo-level failures (e.g., inaccessible tree) are reported in an `errors` list
   rather than aborting the whole scan.
+- **FR-2.7** Each row also reports the repository's **last deployment date**, taken from the
+  most recent successful GitHub Actions workflow run (`/repos/{owner}/{repo}/actions/runs`
+  with `status=success`, sorted newest first). The run's `updated_at` is used as the
+  deployment date, falling back to `run_started_at` then `created_at`.
+- **FR-2.8** A repository with Actions disabled, no successful runs, or insufficient token
+  permissions yields an empty deployment date (`—` in the UI, empty in CSV) and is not
+  counted as a scan error.
+- **FR-2.9** The Actions lookup is cached per repository so all rows from the same repo
+  share a single API call.
 
 ### FR-3 Version detection
 - **FR-3.1** The scanner detects product versions from the following file types:
@@ -186,6 +196,8 @@ static single-page frontend (no build step, no database).
 8. **EOL resolver** — `lookupProductEol()` matches a version to a release cycle and derives
    status; results cached in-memory per product+version.
 9. **Domain mapper** — `functionalDomain()` resolves a repo to its functional domain.
+10. **Deployment lookup** — `getLastSuccessfulRun()` fetches the newest successful Actions
+    workflow run for a repo; cached per repo, and never fails the scan.
 
 ### 9.4 Org Scan Data Flow
 
@@ -197,6 +209,7 @@ static single-page frontend (no build step, no database).
    b. Select candidate manifest files (workflows/dockers capped, other files capped at 25).
    c. Fetch file contents in parallel.
    d. Extract versions for every requested product from each candidate file.
+   e. Look up the latest successful Actions run for the repo's deployment date (cached).
 5. For each unique product+version, resolve cycle/EOL/status via the cached resolver.
 6. Return `{ owner, scannedRepos, rows, errors }`.
 
@@ -213,6 +226,10 @@ static single-page frontend (no build step, no database).
       "domain": "Frontend",
       "domainHost": "masterysys.atlassian.net",
       "branch": "master",
+      "lastDeployment": { "date": "2026-09-28T14:03:11Z",
+                           "name": "Deploy to production",
+                           "url": "https://github.com/masterysystems/mastery-frontend/actions/runs/123",
+                           "branch": "master" },
       "name": "nodejs",
       "file": ".nvmrc",
       "version": "24.15",
@@ -290,7 +307,7 @@ Configured via environment variables, loaded from `.env` (not committed to git):
 | Variable | Purpose |
 | --- | --- |
 | `GITHUB_ORG` | Default organization for org scans (e.g., `masterysystems`). |
-| `GITHUB_TOKEN` | Fine-grained PAT with read (`contents`) access to target repos. |
+| `GITHUB_TOKEN` | Fine-grained PAT with read (`contents`) access to target repos; `actions:read` is required for the Last deployment column. |
 | `PORT` | HTTP listen port (default `3000`). |
 
 ## 11. Acceptance Criteria
