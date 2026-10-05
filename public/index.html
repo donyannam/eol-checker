@@ -71,46 +71,93 @@
     <section class="card" id="orgSection" hidden>
         <h2>Org scan results</h2>
         <div class="toolbar">
-          <select id="orgFilter">
-            <option value="all">All</option>
-            <option value="active">Supported</option>
-            <option value="warning">Support ended</option>
-            <option value="eol">EOL</option>
-            <option value="unknown">Unknown</option>
-          </select>
-          <span class="muted" id="orgCount"></span>
-          <button id="exportCsvBtn" class="ghost">Export CSV</button>
+          <div class="filters">
+            <select id="orgFilter">
+              <option value="all">All statuses</option>
+              <option value="active">Supported</option>
+              <option value="warning">Support ended</option>
+              <option value="eol">EOL</option>
+              <option value="unknown">Unknown</option>
+            </select>
+            <select id="orgDetection" title="A pinned version is the version in use; a range only says what the manifest accepts.">
+              <option value="all">Pinned and ranges</option>
+              <option value="pinned">Pinned only</option>
+              <option value="constraint">Ranges only</option>
+            </select>
+            <span class="muted" id="orgCount"></span>
+          </div>
+          <div class="exports">
+            <button id="exportCsvBtn" class="ghost">Export CSV</button>
+            <button id="exportExcelBtn" class="ghost">Export CSV (Excel text)</button>
+            <button id="exportRollupBtn" class="ghost">Export rollups</button>
+          </div>
         </div>
+
+        <div class="rollup">
+          <div class="rollup-summary" id="orgSummary"></div>
+          <div class="table-wrap rollup-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Domain</th>
+                  <th class="num">Repos</th>
+                  <th class="num">With EOL version</th>
+                </tr>
+              </thead>
+              <tbody id="rollupBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Repository</th>
+                <th>Region</th>
                 <th>Domain</th>
                 <th>Software</th>
+                <th>Detected as</th>
                 <th>Used version</th>
-                <th>File</th>
+                <th>Detection</th>
+                <th>File:line</th>
+                <th>Evidence</th>
                 <th>Cycle</th>
                 <th>Latest</th>
                 <th>EOL</th>
                 <th>Support until</th>
                 <th>Source API</th>
-                <th>Last deployment</th>
+                <th>Last deploy run</th>
+                <th>Repo status</th>
                 <th>Status</th>
               </tr>
               <tr class="caption-row">
-                <td colspan="9"></td>
+                <td colspan="8"></td>
+                <td class="caption-cell">
+                  The matched source line. Every version is readable straight
+                  from the repo.
+                </td>
+                <td colspan="4"></td>
                 <td class="caption-cell">
                   Source: endoflife.date API —<br />per-product EOL data
                 </td>
                 <td class="caption-cell">
-                  Source: GitHub Actions API —<br />latest successful run
+                  Source: GitHub Actions API —<br />newest successful run on the
+                  default branch with a push, workflow_dispatch or release trigger
                 </td>
-                <td></td>
+                <td colspan="2"></td>
               </tr>
             </thead>
             <tbody id="orgBody"></tbody>
           </table>
+        </div>
+
+        <div class="toolbar pager">
+          <span class="muted" id="pageInfo">Page 1 of 1</span>
+          <div class="pager-buttons">
+            <button id="prevPageBtn" class="ghost">Previous</button>
+            <button id="nextPageBtn" class="ghost">Next</button>
+          </div>
         </div>
       </section>
     </main>

@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EOL Checker — Fix Report</title>
+<style>
+  * { box-sizing: border-box; }
+
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --code: #0b1526;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --primary: #2563eb;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.9rem;
+    line-height: 1.25;
+  }
+
+  h2 {
+    margin: 2.75rem 0 0.75rem;
+    font-size: 1.3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    scroll-margin-top: 1rem;
+  }
+
+  h2:first-of-type { border-top: none; }
+
+  h3 { font-size: 1.02rem; margin: 1.4rem 0 0.4rem; }
+
+  .sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  p { margin: 0.7rem 0; }
+
+  a { color: #7dd3fc; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.88em;
+  }
+
+  p code, li code, td code, th code {
+    background: var(--code);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05em 0.32em;
+  }
+
+  pre {
+    background: var(--code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    margin: 0.85rem 0;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .callout {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    margin: 1.1rem 0;
+  }
+
+  .callout.warn { border-left-color: var(--warn); }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .callout strong:first-child { color: var(--warn); }
+  .callout.lead strong:first-child { color: var(--ok); }
+
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.9rem 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--card);
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(37, 99, 235, 0.07); }
+
+  td.num { white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .sev {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .sev.critical { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+  .sev.high     { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+  .sev.medium   { background: rgba(37, 99, 235, 0.16); color: #93c5fd; }
+  .sev.low      { background: rgba(148, 163, 184, 0.16); color: var(--muted); }
+  .sev.none     { background: rgba(34, 197, 94, 0.16); color: #86efac; }
+
+  ul, ol { padding-left: 1.35rem; }
+  li { margin: 0.3rem 0; }
+
+  .lbl { font-weight: 700; }
+
+  .lbl.was  { color: #fca5a5; }
+  .lbl.now  { color: #86efac; }
+  .lbl.ver  { color: #93c5fd; }
+  .lbl.need { color: #fcd34d; }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.25rem 0 0.25rem;
+  }
+
+  .stat {
+    flex: 1 1 150px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .stat .n {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .stat .l {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  @media print {
+    body { background: #fff; color: #111; }
+    .wrap { max-width: none; }
+    h2 { border-top-color: #ddd; }
+    th, .stat, .callout, pre, .scroll { background: #f6f6f6; }
+    th, td { border-bottom-color: #ddd; }
+    p code, li code, td code, th code { background: #eee; border-color: #ddd; }
+    a { color: #0369a1; }
+    .sev.critical { color: #b91c1c; }
+    .sev.high { color: #a16207; }
+    .sev.medium { color: #1d4ed8; }
+    .sev.low { color: #475569; }
+    .lbl.was { color: #b91c1c; }
+    .lbl.now, .lbl.ver { color: #15803d; }
+    .lbl.need { color: #a16207; }
+    .sub, .stat .l { color: #555; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>EOL Checker — Fix Report</h1>
+<p class="sub">Oct 5, 2026 · addresses <code>2026-10-05-eol-checker-review.md</code> (line numbers in that review refer to commit <code>9f04184</code>)</p>
+
+<div class="stats">
+  <div class="stat"><div class="n">12 / 12</div><div class="l">Findings fixed</div></div>
+  <div class="stat"><div class="n">44</div><div class="l">Tests passing</div></div>
+  <div class="stat"><div class="n">2</div><div class="l">Critical, closed</div></div>
+  <div class="stat"><div class="n">998</div><div class="l">Active repos now scanned</div></div>
+</div>
+
+<div class="callout lead">
+<p><strong>All twelve findings (F1–F12) are implemented, tested and documented.</strong> 44 <code>node:test</code> regressions pass. The two critical findings are fixed: F1 no longer reports other languages' versions as Node.js, and F2 now scans all 998 active repositories instead of 392.</p>
+</div>
+
+<div class="callout warn">
+<p><strong>The 2026-10-01 export is still invalid and should not be shared.</strong> It needs regenerating on top of these fixes, which requires a GitHub App installation token or several PAT hours (see <a href="#not-covered">Not covered</a>).</p>
+</div>
+
+<h2 id="summary">Summary</h2>
+
+<div class="scroll">
+<table>
+<thead>
+<tr><th>#</th><th>Finding</th><th>Severity</th><th>Fix</th><th>Where</th><th>Tests</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td class="num">F1</td>
+  <td>Workflow <code>setup-*</code> versions reported under whatever product was scanned</td>
+  <td><span class="sev critical">Critical</span></td>
+  <td><code>SETUP_PRODUCTS</code> gate</td>
+  <td class="mono"><code>server.js:669-696</code><br><code>server.js:838-841</code></td>
+  <td class="num">10</td>
+</tr>
+<tr>
+  <td class="num">F2</td>
+  <td>Repo listing stopped after 10 pages; 606 active repos never scanned</td>
+  <td><span class="sev critical">Critical</span></td>
+  <td>Page to a short page</td>
+  <td class="mono"><code>server.js:369-405</code></td>
+  <td class="num">2</td>
+</tr>
+<tr>
+  <td class="num">F3</td>
+  <td>"Last deployment" is any successful run, and the query is unstable</td>
+  <td><span class="sev high">High</span></td>
+  <td>Filter client-side, scope to deploy runs, always give a reason</td>
+  <td class="mono"><code>server.js:418-532</code></td>
+  <td class="num">4</td>
+</tr>
+<tr>
+  <td class="num">F4</td>
+  <td>Version ranges reported as the version in use</td>
+  <td><span class="sev high">High</span></td>
+  <td>Tag pinned vs constraint</td>
+  <td class="mono"><code>server.js:637-664</code><br><code>server.js:1222</code></td>
+  <td class="num">6</td>
+</tr>
+<tr>
+  <td class="num">F5</td>
+  <td>Not ready for a shared server</td>
+  <td><span class="sev high">High</span></td>
+  <td>Allow-list, loopback bind, App auth, background jobs, TTL caches</td>
+  <td class="mono"><code>server.js:30-57</code><br><code>server.js:1263-1352</code><br><code>server.js:1453-1499</code></td>
+  <td class="num">—</td>
+</tr>
+<tr>
+  <td class="num">F6</td>
+  <td>Cycle matching by digit-stripped prefix</td>
+  <td><span class="sev medium">Medium</span></td>
+  <td>Dotted-component match, longest wins</td>
+  <td class="mono"><code>server.js:210-244</code></td>
+  <td class="num">5</td>
+</tr>
+<tr>
+  <td class="num">F7</td>
+  <td>Silent per-repo caps and dropped fetches</td>
+  <td><span class="sev medium">Medium</span></td>
+  <td>Caps configurable and reported</td>
+  <td class="mono"><code>server.js:1081-1107</code><br><code>server.js:534-579</code></td>
+  <td class="num">5</td>
+</tr>
+<tr>
+  <td class="num">F8</td>
+  <td><code>true</code>/<code>false</code> share one label set</td>
+  <td><span class="sev medium">Medium</span></td>
+  <td>Field-aware labels</td>
+  <td class="mono"><code>public/app.js:78-84</code></td>
+  <td class="num">—</td>
+</tr>
+<tr>
+  <td class="num">F9</td>
+  <td>Export omits the matched line; Excel reads <code>3.10</code> as 3.1</td>
+  <td><span class="sev medium">Medium</span></td>
+  <td>Evidence/line columns, Excel-text export</td>
+  <td class="mono"><code>public/app.js:436-482</code></td>
+  <td class="num">1</td>
+</tr>
+<tr>
+  <td class="num">F10</td>
+  <td>54 of 119 repos unmapped; others misfiled by substring</td>
+  <td><span class="sev medium">Medium</span></td>
+  <td>Exact-keyed repo + team tables, "Unmapped"</td>
+  <td class="mono"><code>domains.json</code><br><code>server.js:891-903</code></td>
+  <td class="num">5</td>
+</tr>
+<tr>
+  <td class="num">F11</td>
+  <td>Status line counts rows, not repositories</td>
+  <td><span class="sev low">Low</span></td>
+  <td>Repo-level rollup and summary</td>
+  <td class="mono"><code>server.js:1004-1077</code><br><code>public/app.js</code></td>
+  <td class="num">4</td>
+</tr>
+<tr>
+  <td class="num">F12</td>
+  <td>REQUIREMENTS.md misstates org size and behavior</td>
+  <td><span class="sev low">Low</span></td>
+  <td>Rewritten to match the code</td>
+  <td class="mono"><code>REQUIREMENTS.md</code><br><code>README.md</code></td>
+  <td class="num">—</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="f1">F1 — Other languages' setup steps <span class="sev critical">Critical</span></h2>
+
+<p><span class="lbl was">Was:</span> the workflow extractor remembered the language of any <code>setup-*</code> step but never compared it with the product being scanned, so every <code>*-version:</code> input was emitted. <code>setup-dotnet 8.0.x</code> became Node 8. 185 rows of the 379-row export were other languages. It also ran in reverse: scanning <code>python</code> reported <code>node-version: 24</code> as Python 24, and the UI's four-product default emitted every setup version four times.</p>
+
+<p><span class="lbl now">Now:</span> a setup step only contributes a version when the product being scanned is the one that step installs. Any other <code>setup-*</code> action clears the pending input, so it cannot leak into a later <code>*-version</code> line either.</p>
+
+<pre><code>const SETUP_PRODUCTS = {
+  node: ["node", "nodejs"], python: ["python", "python3"], golang: ["go", "golang"],
+  java: ["java"], ruby: ["ruby"], dotnet: ["dotnet"], php: ["php"],
+};</code></pre>
+
+<p><code>SETUP_LANG</code> (action → product) and <code>SETUP_INPUT</code> (product → input name) were added alongside it; the input names are now data rather than a hardcoded list, which is what lets an unknown <code>setup-*</code> action be rejected.</p>
+
+<p><span class="lbl ver">Verified:</span> <code>setup-dotnet</code>, <code>setup-go</code>, <code>setup-ruby</code> and <code>setup-java</code> produce no Node rows; <code>setup-node</code> still matches a <code>nodejs</code> scan; the reverse leak is closed; container images in workflows are unaffected. A whole-org scan of setup-dotnet workflows produces zero rows.</p>
+
+<h2 id="f2">F2 — Repo listing cap <span class="sev critical">Critical</span></h2>
+
+<p><span class="lbl was">Was:</span> <code>listOrgRepos()</code> stopped after 10 pages of 100. 606 of 998 active repositories were never listed, and <code>limit</code> was applied before forks and archived repos were removed, so <code>limit: 40</code> could scan fewer than 40.</p>
+
+<p><span class="lbl now">Now:</span> paging continues until a short page. <code>MAX_REPO_PAGES</code> (default 200) is a safety ceiling only, and hitting it throws rather than returning a partial org. <code>limit</code> applies after forks and archived repos are removed. Every scan reports the counts the review asked for: <code>listedRepos</code>, <code>forkRepos</code>, <code>archivedRepos</code>, <code>listingTruncated</code>, <code>scannedRepos</code>.</p>
+
+<p><span class="lbl ver">Verified live against masterysystems:</span> 1,766 listed, 29 forks, 739 archived, 998 scannable, <code>listingTruncated: false</code>. A test stubs 1,205 repositories and asserts the 13th page is read.</p>
+
+<h2 id="f3">F3 — Last deployment <span class="sev high">High</span></h2>
+
+<p><span class="lbl was">Was:</span> the first result of <code>/actions/runs?status=success&amp;per_page=1</code> — any workflow, any branch, any trigger. The query itself is unstable: identical calls returned 2025-12-19, then 2026-03-13, then 2026-10-05 for <code>configuration</code>, because GitHub returns partial result sets under that filter for busy repos. A blank cell was ambiguous between Actions disabled, no runs, and a token without <code>actions:read</code>.</p>
+
+<p><span class="lbl now">Now</span>, following all four suggested fixes:</p>
+
+<ol>
+<li>The <code>status</code> filter is dropped; <code>conclusion == "success"</code> is checked client-side.</li>
+<li><code>pickDeployRun()</code> accepts only the default branch and deploy-type triggers (<code>push</code>, <code>workflow_dispatch</code>, <code>release</code>, <code>deployment</code>, <code>workflow_run</code>), so scheduled jobs and PR checks on other branches are skipped.</li>
+<li>The column is renamed <strong>Last deploy run</strong> and carries a <code>scope</code> string. The review noted that production deploys actually run through Argo CD from <code>mastermind-release/release/pipeline/prod.json</code>; that is a documented backlog item, not something this change can resolve, so the column no longer implies a production date.</li>
+<li><code>deployRunReason()</code> explains every blank: <code>No workflow runs</code>, <code>No successful run</code>, <code>No successful run on &lt;branch&gt;</code>, <code>No deploy-type run on &lt;branch&gt; in the last N runs</code>, or <code>Actions data unavailable (repo or token)</code>. The reason is exported next to the blank cell and is not counted as a scan error.</li>
+</ol>
+
+<p>Because the column may now be legitimately blank where it previously showed a misleading date, <code>configuration</code> and <code>noc-mastermind-dashboards</code> will show blanks with reasons. That is the correct reading: neither has a successful push-triggered run on its default branch.</p>
+
+<h2 id="f4">F4 — Ranges read as versions <span class="sev high">High</span></h2>
+
+<p><span class="lbl was">Was:</span> <code>normVersion()</code> kept the first number in a spec, so <code>&gt;=8.0.0</code> became 8.0.0 and <code>^16 || ^18 || ^20 || &gt;=22</code> became 16. 65 rows were lower bounds, from <code>engines</code> and <code>peerDependencies</code>, which say what a package accepts rather than what runs.</p>
+
+<p><span class="lbl now">Now:</span> <code>isConstraintSpec()</code> recognizes range operators (caret, tilde, comparator, wildcard, union, hyphen range). Constrained rows carry the raw spec, are tagged <code>detection: "constraint"</code> with <code>confidence: "Medium"</code>, and are <strong>excluded from the EOL counts</strong> in the scan summary. A repository whose only evidence is a range is reported as <code>constraintsOnly</code> in the rollup rather than as a clean repository. Pinned rows keep High confidence. Every row also carries the line it was read from and the matched source line.</p>
+
+<h2 id="f5">F5 — Shared-server readiness <span class="sev high">High</span></h2>
+
+<p>All five rows of the review's table, plus the smaller escaping item:</p>
+
+<div class="scroll">
+<table>
+<thead><tr><th>Area</th><th>Change</th></tr></thead>
+<tbody>
+<tr>
+  <td>Access</td>
+  <td>Binds <code>127.0.0.1</code> by default; <code>HOST</code> must be set explicitly to expose it, and the docs state that a shared deployment must put company SSO in front — the app has no auth of its own</td>
+</tr>
+<tr>
+  <td>Scan target</td>
+  <td>Scans restricted to <code>GITHUB_ORG</code> + <code>SCAN_ALLOWED_ORGS</code>; anything else is <code>403</code> before any GitHub call</td>
+</tr>
+<tr>
+  <td>Credentials</td>
+  <td>GitHub App installation token supported (<code>GITHUB_APP_ID</code>, <code>GITHUB_APP_INSTALLATION_ID</code>, <code>GITHUB_APP_PRIVATE_KEY</code>, JWT signed with <code>node:crypto</code>, no dependency added), PAT kept as fallback; <code>/api/org</code> reports which is in use without revealing either</td>
+</tr>
+<tr>
+  <td>Execution</td>
+  <td><code>POST /api/org-scan</code> returns <code>202</code> with a job id; <code>createScanJob()</code> runs the scan off the request cycle with progress, stores the result with timestamps, and <code>GET /api/org-scan/latest</code> serves it back for <code>JOB_TTL_MS</code></td>
+</tr>
+<tr>
+  <td>Caching</td>
+  <td>TTLs everywhere: EOL 24h, errors 5m, catalog 24h, Actions runs 1h; rate limits (403/429) raise a typed error carrying the reset time and stop the repo loop instead of burning quota</td>
+</tr>
+<tr>
+  <td>XSS</td>
+  <td><code>cycle</code> and <code>latest</code> are now escaped like every other dynamic string</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<p>The smaller item from the review — <code>cycle</code>/<code>latest</code> rendered without <code>escapeHtml()</code>, in breach of FR-6.5 and NFR-2 — is fixed as part of the frontend rewrite.</p>
+
+<h2 id="f6">F6 — Cycle matching <span class="sev medium">Medium</span></h2>
+
+<p><span class="lbl was">Was:</span> <code>cycleKey()</code> stripped dots before matching. Go <code>1.25</code> → <code>125</code> landed on Node cycle 12; <code>3.10</code> → <code>310</code> landed on cycle 3.</p>
+
+<p><span class="lbl now">Now:</span> <code>findCycleForVersion()</code> compares dotted components and returns the longest cycle that is a component-wise prefix of the version. <code>24.15.0</code> → cycle 24, <code>3.10.4</code> → cycle <code>3.10</code> (not 3, and never 3.14), <code>1.25</code> cannot match cycle 12.</p>
+
+<h2 id="f7">F7 — Silent per-repo limits <span class="sev medium">Medium</span></h2>
+
+<p><span class="lbl was">Was:</span> 5 workflows, 3 Dockerfiles and 25 files per repo, in tree order, with <code>break</code> at 25 so later candidates were dropped too; a truncated tree was unchecked; non-YAML files under <code>.github/workflows</code> parsed as workflows; <code>fetchRawFile()</code> returned <code>""</code> on any failure. Across 119 repos: 667 workflow files never read, 33 repos over the Dockerfile cap, 700+ manifests unread behind the 25-file cap, 1 truncated tree, 7 non-YAML files.</p>
+
+<p><span class="lbl now">Now:</span></p>
+
+<ul>
+<li>Caps default to <code>0</code> (uncapped) and are per-type configurable via <code>MAX_WORKFLOWS_PER_REPO</code>, <code>MAX_DOCKERFILES_PER_REPO</code>, <code>MAX_FILES_PER_REPO</code>.</li>
+<li><code>selectCandidates()</code> returns <code>{ candidates, skipped }</code>; skipped paths are recorded in <code>errors</code>, so a cap can never silently reduce coverage.</li>
+<li><code>getRepoTree()</code> checks <code>truncated</code> and reports an incomplete tree.</li>
+<li><code>fetchRawFile()</code> returns a reason instead of an empty string, reported as <code>Could not read &lt;path&gt;: &lt;reason&gt;</code>.</li>
+<li><code>classifyFile()</code> treats only <code>.yml</code>/<code>.yaml</code> under <code>.github/workflows</code> as workflows, so <code>Android-Deploy-Dev-Internal-devapp.txt</code> is no longer parsed.</li>
+<li>Counts surface in <code>summary.coverage</code> and the status line.</li>
+</ul>
+
+<h2 id="f8">F8 — True/false labels <span class="sev medium">Medium</span></h2>
+
+<p><code>fmtDate()</code> mapped every <code>true</code> to "Stale" and every <code>false</code> to "Ended" regardless of column, so Redis 8.10 showed EOL "Ended" beside Support "Stale" next to a "Supported" badge. Labels are now field-aware: <code>eol: true</code> → "EOL (no date)", <code>eol: false</code> → "Not announced", <code>support: true</code> → "Supported (no end date)", <code>support: false</code> → "Ended (no date)".</p>
+
+<h2 id="f9">F9 — Export <span class="sev medium">Medium</span></h2>
+
+<p>The CSV now carries Evidence (the matched line), Line, Detected as (the name the manifest used), the raw spec, Detection and Confidence, Region, the repo's worst status, and the reason behind any blank last-deploy cell — 24 columns.</p>
+
+<p>The Excel export writes the four version-shaped columns as <code>="3.10"</code> text so <code>3.10</code> is not read as 3.1. The column set is derived from <code>ROW_HEADER.indexOf()</code> rather than hardcoded indices, so it cannot silently drift when the header changes. A third export writes the per-repository rollup and the per-domain summary.</p>
+
+<h2 id="f10">F10 — Domain mapping <span class="sev medium">Medium</span></h2>
+
+<p><span class="lbl was">Was:</span> ordered substring rules describing technical layers, not Mastery's domains. <code>mastery-credit</code> → EDI because "edi" is inside "credit"; <code>mass-uploads-library</code> and <code>capacity-load-testing</code> → Load Status because "load" is inside "upload"/"load"; 54 of 119 repos unmapped. Rules also matched <code>full_name</code>, so the org prefix took part in every match.</p>
+
+<p><span class="lbl now">Now:</span> two exact-keyed tables. A <code>repos</code> override wins; otherwise the repository's owning GitHub team is looked up in <code>teams</code>. Substring matching is gone. Unmapped repos are reported as <strong>Unmapped</strong> — never blank, never a homepage hostname. Each row carries <code>region</code> and <code>domainSource</code> so a mapping can be audited back to where it came from.</p>
+
+<p>The Compass taxonomy (5 regions, 6 categories) is in <code>domains.json</code> as <code>_taxonomy</code> for validation. <code>npm run domains:seed &lt;org&gt;</code> prints the org's team slugs with empty region/category to fill in, plus the repos still Unmapped afterwards.</p>
+
+<p><span class="lbl need">Needs your input:</span> the actual team → region/category assignments. Compass's own repo links are thin — the review notes only 77 of 312 services match a GitHub repo — so this cannot be derived from data. Until it is filled in, real repos resolve to <code>Unmapped</code>, which is honest but not useful.</p>
+
+<h2 id="f11">F11 — Rows vs. repositories <span class="sev low">Low</span></h2>
+
+<p><span class="lbl was">Was:</span> "Scanned N repos, found M software matches", where M counted rows: 379 rows from 119 repos.</p>
+
+<p><span class="lbl now">Now:</span> the summary separates <code>scannedRepos</code>, <code>listedRepos</code>, <code>reposWithMatches</code>, <code>rows</code>, <code>pinnedRows</code> and <code>constraintRows</code>. <code>rollupByRepo()</code> gives each repository its worst status and stamps it onto every row, so a decision can be read per repo. The UI shows a rollup (repos by worst status, repos by domain) above the table, with its own CSV export. The status line counts repositories.</p>
+
+<h2 id="f12">F12 — REQUIREMENTS.md <span class="sev low">Low</span></h2>
+
+<p>All six stale statements corrected, and the sections between them brought in line with what shipped: FR-2 now covers the background-job flow and the full response shape; FR-3 gains the setup-step gate and the cap/fetch reporting; FR-4 gains range handling and per-field labels; FR-5 becomes the two-table exact mapping; FR-6 gains pagination and the three exports; §9 is rewritten (components, data flow, API contract, detection pipeline, domain mapping, security, resilience, performance); §10 documents every env var with defaults; acceptance criteria go from 8 to 13, including the F1 and F4 cases. NFR-1 no longer sizes the scan for a ~50-repo org. README.md was rewritten for credentials, the GitHub App, tuning, exports, domains and tests.</p>
+
+<h2 id="verification">Verification</h2>
+
+<ul>
+<li><code>npm test</code> — 44 pass, 0 fail (~330ms). Covers F1, F2, F3, F4, F6, F7, F10, F11.</li>
+<li><code>node --check server.js</code> and <code>node --check public/app.js</code> clean.</li>
+<li>Endpoint smoke test: <code>/api/health</code>, <code>/api/org</code>, org allow-list rejection (<code>403</code>), JSON 404 for unmatched <code>/api/*</code>, static root (<code>200</code>).</li>
+<li>Live job scan on masterysystems: 1,766 listed → 2 scanned, 11 rows (5 pinned, 6 ranges), 0 errors, <code>constraintsOnly</code> rollup correct, result re-served by <code>/api/org-scan/latest</code>.</li>
+<li><code>git diff --check</code> clean. Nothing is committed yet.</li>
+</ul>
+
+<h2 id="not-covered">Not covered</h2>
+
+<p>These are real gaps, not oversights:</p>
+
+<ul>
+<li><strong>The 2026-10-01 export is not regenerated.</strong> Its 379 rows are still wrong. A full-org export needs a GitHub App (15,000 req/hr); on a PAT (5,000/hr) it does not fit in one hour.</li>
+<li><strong>True production deployment dates.</strong> Still the newest qualifying Actions run, not the <code>sha</code> history of <code>prod.json</code> or Argo CD sync history. The column is renamed and scoped so it cannot be misread as a production date.</li>
+<li><strong><code>domains.json</code> teams is empty.</strong> See <a href="#f10">F10</a>.</li>
+<li><strong>SSO and durable storage.</strong> Loopback binding and an allow-list are the local-use answer. A shared or scheduled deployment needs SSO in front and job persistence; scans and results live in process memory.</li>
+<li><strong>Actions-runtime checks.</strong> Out of scope by the review's own scope note: the checker measures the Node version an application <em>declares</em>. GitHub's removal of Node 20 from runners applies to JavaScript actions declaring <code>runs.using: node20</code>, so a repo can deploy while declaring Node 20. That needs a separate <code>uses:</code> analysis.</li>
+</ul>
+
+<footer>
+Generated from <code>2026-10-05-eol-checker-fixes.md</code> · source review <code>2026-10-05-eol-checker-review.md</code> (commit <code>9f04184</code>).
+</footer>
+
+</div>
+</body>
+</html>

@@ -4,7 +4,9 @@
   "description": "Check the End of Life status of software products",
   "main": "server.js",
   "scripts": {
-    "start": "GITHUB_ORG=masterysystems node server.js"
+    "start": "GITHUB_ORG=masterysystems node server.js",
+    "test": "node --test test/",
+    "domains:seed": "node scripts/seed-domains.js"
   },
   "dependencies": {
     "express": "^4.19.2"
